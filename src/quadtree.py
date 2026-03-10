@@ -1,7 +1,17 @@
+import logging
 import math
 import time
 
 import src.googleapi as googleapi
+
+logging.basicConfig(
+    level=logging.DEBUG,   # see everything
+    # level=logging.INFO,    # only high-level progress
+    # level=logging.WARNING, # silent unless something goes wrong
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
+
+logger = logging.getLogger(__name__)
 
 # bounds found from here: https://epsg.io/4693-area
 COPENHAGEN_BOUNDS = {
@@ -88,14 +98,14 @@ def build_quadtree(bounding_box, depth=0):
     center_lat, center_lon = bounding_box.center()
     radius = bounding_box.radius_meters()
 
-    print(f"{indent}Querying cell (depth={depth}): center={f"{center_lat}, {center_lon}"}, radius={radius:.0f}m")
+    logger.debug(f"{indent}Querying cell (depth={depth}): center={center_lat:.6f}, {center_lon:.6f}, radius={radius:.0f}m")
 
     # buffer to respect API rate limits
     time.sleep(0.1)
 
     results = googleapi.search_nearby(center_lat, center_lon, radius)
 
-    print(f"{indent}-> Got {len(results)} results")
+    logger.debug(f"{indent}-> Got {len(results)} results")
 
     # cell is not saturated, we're done here
     if len(results) < 20:
@@ -103,7 +113,7 @@ def build_quadtree(bounding_box, depth=0):
         return node
 
     # otherwise, cell is saturated, so we recursively split into 4 quadrants
-    print(f"{indent}  Saturated — splitting into 4 quadrants")
+    logger.info(f"{indent}Saturated at depth={depth} — splitting into 4 quadrants")
     for child_bounding_box in bounding_box.split_bounding_box():
         # recursively build new quadtrees and append the children to the current node
         child_node = build_quadtree(child_bounding_box, depth + 1)
@@ -144,18 +154,18 @@ def main():
         lon_east=MINI_BOX["lon_east"],
     )
 
-    print("Starting quadtree search over Mini Box...")
+    logger.info("Starting quadtree search over Mini Box...")
     root = build_quadtree(bounding_box)
 
     restaurants = collect_results(root)
-    print(f"\nDone! Found {len(restaurants)} unique restaurants.")
+    logger.info(f"Done! Found {len(restaurants)} unique restaurants.")
 
-    googleapi.save_to_json(restaurants, "mini-box.json")
+    googleapi.save_to_json(restaurants, "mini-box")
 
     for r in restaurants:
         name = r.get("displayName", {}).get("text", "Unknown")
         loc = r.get("location", {})
-        print(f"  {name}: ({loc.get('latitude')}, {loc.get('longitude')})")
+        logger.debug(f"  {name}: ({loc.get('latitude')}, {loc.get('longitude')})")
 
     return restaurants
 
