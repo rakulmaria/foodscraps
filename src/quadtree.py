@@ -3,16 +3,12 @@ import math
 import time
 
 import googleapi
+from logger import setup_logger
 
-logging.basicConfig(
-    level=logging.DEBUG,   # see everything
-    # level=logging.INFO,    # only high-level progress
-    # level=logging.WARNING, # silent unless something goes wrong
-    format="%(asctime)s [%(levelname)s] %(message)s",
-)
-
+# --- logger
 logger = logging.getLogger(__name__)
 
+# --- shared configuration
 # bounds found from here: https://epsg.io/4693-area
 COPENHAGEN_BOUNDS = {
     "lat_south": 55.51,
@@ -29,6 +25,7 @@ MINI_BOX = {
     "lon_east": 12.554734,
 }
 
+
 def haversine(lat1, lon1, lat2, lon2):
     """
     Returns the distance in meters between two lat/lon points.
@@ -41,7 +38,10 @@ def haversine(lat1, lon1, lat2, lon2):
     dphi = math.radians(lat2 - lat1)
     dlambda = math.radians(lon2 - lon1)
 
-    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    a = (
+        math.sin(dphi / 2) ** 2
+        + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    )
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
@@ -98,7 +98,9 @@ def build_quadtree(bounding_box, depth=0):
     center_lat, center_lon = bounding_box.center()
     radius = bounding_box.radius_meters()
 
-    logger.debug(f"{indent}Querying cell (depth={depth}): center={center_lat:.6f}, {center_lon:.6f}, radius={radius:.0f}m")
+    logger.debug(
+        f"{indent}Querying cell (depth={depth}): center={center_lat:.6f}, {center_lon:.6f}, radius={radius:.0f}m"
+    )
 
     # buffer to respect API rate limits
     time.sleep(0.1)
@@ -131,9 +133,25 @@ def collect_results(node):
     seen_ids = set()
     restaurants = []
 
+    def is_within_bounds(place, bounding_box):
+        loc = place.get("location", {})
+        lat = loc.get("latitude")
+        lon = loc.get("longitude")
+        if lat is None or lon is None:
+            return False
+        return (
+            bounding_box.lat_south <= lat <= bounding_box.lat_north
+            and bounding_box.lon_west <= lon <= bounding_box.lon_east
+        )
+
     def walk(n):
         if n.is_leaf():
             for place in n.results:
+                if not is_within_bounds(place, n.bounding_box):
+                    logger.debug(
+                        f"Skipping out-of-bounds place: {place.get('displayName', {}).get('text')}"
+                    )
+                    continue
                 place_id = place.get("id")
                 if place_id and place_id not in seen_ids:
                     seen_ids.add(place_id)
@@ -143,6 +161,7 @@ def collect_results(node):
                 walk(child)
 
     walk(node)
+
     return restaurants
 
 
@@ -171,4 +190,5 @@ def main():
 
 
 if __name__ == "__main__":
+    setup_logger()
     main()
