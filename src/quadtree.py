@@ -2,7 +2,7 @@ import logging
 import math
 import time
 
-import src.googleapi as googleapi
+import googleapi
 
 logging.basicConfig(
     level=logging.DEBUG,   # see everything
