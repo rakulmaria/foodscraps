@@ -1,8 +1,8 @@
 import json
 import os
-
 import requests
 
+# --- global shared vars ---
 API_KEY = os.getenv("MAPS_PLATFORM_API_KEY")
 HEADERS = {
     "Content-Type": "application/json",
@@ -10,12 +10,19 @@ HEADERS = {
     "X-Goog-FieldMask": "*",  # what i want to be included in the respond
 }
 
-# FIELD_MASK = 'places.id,places.types,places.displayName
 
+def make_request(url, body, headers=HEADERS):
+    """default request method"""
+    response = requests.post(url, json=body, headers=HEADERS)
+    response.raise_for_status
+    return response.json()
+
+
+# --- API calls to google maps
 def search_nearby(lat, lon, radius):
+    """uses Nearby Search from Placse API (New) to fetch restaurants near to a centerpoint"""
     url = "https://places.googleapis.com/v1/places:searchNearby"
-
-    data = {
+    body = {
         "includedTypes": ["restaurant"],
         "locationRestriction": {
             "circle": {
@@ -28,71 +35,54 @@ def search_nearby(lat, lon, radius):
         },
     }
 
-    response = requests.post(url, json=data, headers=HEADERS)
-    
-    if response.status_code == 200:
-        print(f"Response OK: {response.status_code}")
-    else:
-        print(f"! ERROR: {response.status_code}")
-        print(f"{response.text}")
+    response = make_request(url, body)
 
-    data = response.json()
-
-    return data.get("places", [])
-
+    return response.get("places", [])  # unwrap the places entry
 
 
 def find_aggregated_places():
+    """uses Places Aggregated API to fetch aggregated count of restaurants in an area
+    initially used to find total count of restaurants in CPH
+    """
     url = "https://areainsights.googleapis.com/v1:computeInsights"
-
-    data = {
+    body = {
         "insights": ["INSIGHT_COUNT", "INSIGHT_PLACES"],
         "filter": {
             "locationFilter": {
-                "region": {"place": "places/ChIJIz2AXDxTUkYRuGeU5t1-3QQ"} # copenhagen ID
+                "region": {
+                    "place": "places/ChIJIz2AXDxTUkYRuGeU5t1-3QQ"  # copenhagen ID
+                }
             },
             "typeFilter": {"includedTypes": "restaurant"},
         },
     }
-    response = requests.post(url, json=data, headers=HEADERS)
 
-    if response.status_code == 200:
-        print(f"Response OK: {response.status_code}")
-    else:
-        print(f"! ERROR: {response.status_code}")
+    response = make_request(url, body)
+
+    return response
 
 
-    return json.loads(response.text)
-
-
-def find_place(query):
-    # Define the API endpoint
+def search_text(text_query):
+    """uses Text Search from Placse API (New) to fetch restaurants based on a prompt
+    ! needs to be handled with caution
+    """
     url = "https://places.googleapis.com/v1/places:searchText"
+    body = {"textQuery": text_query}
 
-    # Define the data payload for the POST request
-    data = {"textQuery": query}
-
-    # Make the POST request
-    response = requests.post(url, json=data, headers=HEADERS)
-
-    # Check if the request was successful
-    if response.status_code == 200:
-        print(f"Response OK: {response.status_code}")
-    else:
-        print(f"! ERROR: {response.status_code}")
-
-    return json.loads(response.text)
+    response = make_request(url, body)
+    return response
 
 
 def save_to_json(data, filename: str = "results.json"):
+    """simple helper method to save the data to a json file"""
     with open(filename, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
-    print(f"Saved to {filename}")
 
 
 if __name__ == "__main__":
     # prompts
     carlsberg_byen = "Restaurants in area Carlsberg Byen, Copenhagen"
 
-    place = find_place(carlsberg_byen)
+    place = search_text(carlsberg_byen)
+
     save_to_json(place)
