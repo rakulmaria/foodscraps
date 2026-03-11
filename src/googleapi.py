@@ -5,8 +5,8 @@ import os
 
 import requests
 
-from logger import setup_logger
 from config import DATA_DIR
+from logger import setup_logger
 
 # --- logger
 logger = logging.getLogger(__name__)
