@@ -1,9 +1,14 @@
 import logging
 import math
 import time
+from functools import partial
+
+from timer import function_timer
 
 import googleapi
 from logger import setup_logger
+
+function_timer = partial(function_timer, decimals=5)
 
 # --- logger
 logger = logging.getLogger(__name__)
@@ -86,7 +91,7 @@ class Node:
     def is_leaf(self):
         return len(self.children) == 0
 
-
+@function_timer()
 def build_quadtree(bounding_box, depth=0):
     """
     recursively builds a quadtree over the bounding box.
@@ -123,7 +128,7 @@ def build_quadtree(bounding_box, depth=0):
 
     return node
 
-
+@function_timer()
 def collect_results(node):
     """
     walk the quadtree and collect all results from leaf nodes.
@@ -164,16 +169,16 @@ def collect_results(node):
 
     return restaurants
 
-
+@function_timer()
 def main():
     bounding_box = BoundingBox(
-        lat_south=MINI_BOX["lat_south"],
-        lat_north=MINI_BOX["lat_north"],
-        lon_west=MINI_BOX["lon_west"],
-        lon_east=MINI_BOX["lon_east"],
+        lat_south=COPENHAGEN_BOUNDS["lat_south"],
+        lat_north=COPENHAGEN_BOUNDS["lat_north"],
+        lon_west=COPENHAGEN_BOUNDS["lon_west"],
+        lon_east=COPENHAGEN_BOUNDS["lon_east"],
     )
 
-    logger.info("Starting quadtree search over Mini Box...")
+    logger.info("Starting quadtree search over Copenhagen Box...")
     root = build_quadtree(bounding_box)
 
     restaurants = collect_results(root)
