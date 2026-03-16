@@ -91,12 +91,12 @@ class Node:
     def is_leaf(self):
         return len(self.children) == 0
 
-@function_timer()
+# @function_timer()
 def build_quadtree(bounding_box, depth=0):
     """
     recursively builds a quadtree over the bounding box.
     splits a cell into 4 if the API returns 20 (meaning it's saturated).
-    stops splitting when the cell contains < 20 results.
+    stops splitting when the cell contains < 10 results.
     """
     node = Node(bounding_box)
     indent = "  " * depth
@@ -115,7 +115,8 @@ def build_quadtree(bounding_box, depth=0):
     logger.debug(f"{indent}-> Got {len(results)} results")
 
     # cell is not saturated, we're done here
-    if len(results) < 20:
+    # limit set to 10 to ensure we don't miss some restaurants
+    if len(results) < 10: 
         node.results = results
         return node
 
@@ -128,7 +129,7 @@ def build_quadtree(bounding_box, depth=0):
 
     return node
 
-@function_timer()
+# @function_timer()
 def collect_results(node):
     """
     walk the quadtree and collect all results from leaf nodes.
@@ -184,7 +185,7 @@ def main():
     restaurants = collect_results(root)
     logger.info(f"Done! Found {len(restaurants)} unique restaurants.")
 
-    googleapi.save_to_json(restaurants, "mini-box")
+    googleapi.save_to_json(restaurants, "copenhagen-bounds")
 
     for r in restaurants:
         name = r.get("displayName", {}).get("text", "Unknown")
