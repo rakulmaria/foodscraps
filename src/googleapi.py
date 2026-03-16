@@ -1,4 +1,3 @@
-
 import datetime as dt
 import json
 import logging
@@ -42,7 +41,7 @@ MINI_BOX = {
 }
 
 
-@function_timer()
+# @function_timer()
 def make_request(url, body, headers=HEADERS):
     """default request method"""
     response = requests.post(url, json=body, headers=HEADERS)
@@ -51,7 +50,7 @@ def make_request(url, body, headers=HEADERS):
 
 
 # --- API calls to google maps
-@function_timer()
+# @function_timer()
 def search_nearby(lat, lon, radius):
     """uses Nearby Search from Placse API (New) to fetch restaurants near to a centerpoint"""
     url = "https://places.googleapis.com/v1/places:searchNearby"
@@ -72,54 +71,68 @@ def search_nearby(lat, lon, radius):
 
     return response.get("places", [])  # unwrap the places entry
 
-@function_timer()
-def find_aggregated_places(coordinates):
+
+# @function_timer()
+def find_aggregated_places(coordinates, useRegionFilter=False):
     """uses Places Aggregated API to fetch aggregated count of restaurants in an area
     initially used to find total count of restaurants in CPH
     """
-    # "place": "places/ChIJIz2AXDxTUkYRuGeU5t1-3QQ"  # copenhagen ID
     url = "https://areainsights.googleapis.com/v1:computeInsights"
-    body = {
-        "insights": ["INSIGHT_COUNT", "INSIGHT_PLACES"],
-        "filter": {
-            "locationFilter": {
-                "customArea": {
-                    "polygon": {
-                        "coordinates": [
-                            { # NW
-                                "latitude": coordinates["lat_north"],
-                                "longitude": coordinates["lon_west"],
-                            },
-                            { # SW
-                                "latitude": coordinates["lat_south"],
-                                "longitude": coordinates["lon_west"],
-                            },
-                            { # SE
-                                "latitude": coordinates["lat_south"],
-                                "longitude": coordinates["lon_east"],
-                            },
-                            { # NE
-                                "latitude": coordinates["lat_north"],
-                                "longitude": coordinates["lon_east"],
-                            },  
-                            { # NW: closes the loop
-                                "latitude": coordinates["lat_north"],
-                                "longitude": coordinates["lon_west"],
-                            },
-                        ]
+    
+    if useRegionFilter:
+        body = {
+            "insights": ["INSIGHT_COUNT", "INSIGHT_PLACES"],
+            "filter": {
+                "locationFilter": {
+                    "region": {
+                        "place": "places/ChIJIz2AXDxTUkYRuGeU5t1-3QQ"  # copenhagen ID
                     }
-                    
-                }
+                },
+                "typeFilter": {"includedTypes": "restaurant"},
             },
-            "typeFilter": {"includedTypes": "restaurant"},
-        },
-    }
+        }
+    else:
+        body = {
+            "insights": ["INSIGHT_COUNT", "INSIGHT_PLACES"],
+            "filter": {
+                "locationFilter": {
+                    "customArea": {
+                        "polygon": {
+                            "coordinates": [
+                                {  # NW
+                                    "latitude": coordinates["lat_north"],
+                                    "longitude": coordinates["lon_west"],
+                                },
+                                {  # SW
+                                    "latitude": coordinates["lat_south"],
+                                    "longitude": coordinates["lon_west"],
+                                },
+                                {  # SE
+                                    "latitude": coordinates["lat_south"],
+                                    "longitude": coordinates["lon_east"],
+                                },
+                                {  # NE
+                                    "latitude": coordinates["lat_north"],
+                                    "longitude": coordinates["lon_east"],
+                                },
+                                {  # NW: closes the loop
+                                    "latitude": coordinates["lat_north"],
+                                    "longitude": coordinates["lon_west"],
+                                },
+                            ]
+                        }
+                    }
+                },
+                "typeFilter": {"includedTypes": "restaurant"},
+            },
+        }
 
     response = make_request(url, body)
 
     return response
 
-@function_timer()
+
+# @function_timer()
 def search_text(text_query):
     """uses Text Search from Placse API (New) to fetch restaurants based on a prompt
     ! needs to be handled with caution
@@ -130,14 +143,16 @@ def search_text(text_query):
     response = make_request(url, body)
     return response
 
+
 @function_timer()
 def save_to_json(data, prefix="results"):
     """simple helper method to save the data to a json file"""
     timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
     filepath = DATA_DIR / f"{prefix}_{timestamp}.json"
-    
+
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
 
 @function_timer()
 def main():
@@ -147,10 +162,10 @@ def main():
 
     # save_to_json(place)
     results = find_aggregated_places(COPENHAGEN_BOUNDS)
-    
+
     logger.info(results)
 
 
 if __name__ == "__main__":
-    setup_logger() 
+    setup_logger()
     main()
