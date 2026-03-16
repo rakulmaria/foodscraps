@@ -5,10 +5,10 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "commitlint>=1.13.3",
     "google-auth>=2.48.0",
     "google-maps-areainsights>=0.3.0",
     "ipykernel>=7.2.0",
+    "node>=2.0.0",
     "pandas>=3.0.1",
     "pre-commit>=4.5.1",
     "python-dotenv>=1.2.2",
