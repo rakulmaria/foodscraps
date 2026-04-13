@@ -1,9 +1,13 @@
+import math
+
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+
 from config import DATA_DIR
 
-def getDf():
+
+def get_df():
     # possibly filter by cols-to-keep
     cols_to_keep = [
         "name", 
@@ -43,8 +47,20 @@ def getDf():
     cph_df["primaryTypeDisplayName"] = cph_df["primaryTypeDisplayName"].apply(lambda x: x["text"] if isinstance(x, dict) else x)
     cph_df["priceLabel"] = cph_df["priceRange"].apply(get_price_label)
     cph_df["midPrice"] = cph_df["priceRange"].apply(get_mid_price)
+    cph_df["ratingLabel"] = cph_df["rating"].apply(get_ratings_label)
+    # cph_df["ratingLabel"] = cph_df.apply(
+    #     lambda r: f"{r['rating']} ⭐ ({int(r['userRatingCount'])} reviews)"
+    #     if pd.notna(r.get("rating")) and pd.notna(r.get("userRatingCount"))
+    #     else "No rating",
+    #     axis=1,
+    # )
 
     return cph_df
+
+def get_ratings_label(rating):
+    if math.isnan(rating):
+        return "No rating"
+    return f"{rating:.1f} ⭐"
 
 def get_mid_price(price_range):
     try:
@@ -58,11 +74,11 @@ def get_price_label(price_range):
     try:
         low = int(price_range["startPrice"]["units"])
         high   = int(price_range["endPrice"]["units"])
-        return f"{low} - {high} DKK"
+        return f"{low} - {high} DKK 💵"
     except (TypeError, KeyError, ValueError):
         return "Unknown price range"
 
-def getFigure(df):
+def get_figure(df):
     fig = px.scatter_map(
         cph_df,
         lat="lat",
@@ -71,6 +87,7 @@ def getFigure(df):
         hover_data={
             "primaryTypeDisplayName": True,
             "priceLabel": True,
+            "ratingLabel": True,
             "lat": False,
             "lon": False,
         },
@@ -94,13 +111,14 @@ def getFigure(df):
     fig.update_traces(
         hovertemplate="<b>%{hovertext}</b><br><br>"
                     "Primary Type: %{customdata[0]}<br>"
-                    "Price Label: %{customdata[1]}"
+                    "Price Label: %{customdata[1]}<br>"
+                    "Rating: %{customdata[2]}"
                     "<extra></extra>"
     )
 
     return fig
 
-cph_df = getDf()
-fig = getFigure(cph_df)
+cph_df = get_df()
+fig = get_figure(cph_df)
 
 st.plotly_chart(fig)
