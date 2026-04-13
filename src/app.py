@@ -8,39 +8,10 @@ from config import DATA_DIR
 
 
 def get_df():
-    # possibly filter by cols-to-keep
-    cols_to_keep = [
-        "name", 
-        "id", 
-        "types", 
-        "formattedAddress", 
-        "location", 
-        "rating", 
-        "googleMapsUri",
-        "websiteUri",
-        "businessStatus",
-        "priceLevel",
-        "displayName",
-        "takeout",
-        "delivery",
-        "dineIn",
-        "servesBreakfast",
-        "servesLunch",
-        "servesDinner",
-        "servesBrunch",
-        "servesDessert",
-        "primaryType",
-        "reviews",
-        "priceRange",
-        "postalAddress",
-        "editorialSummary",
-        "servesVegetarianFood",
-    ]
-
     cph_df = pd.read_json(DATA_DIR / "copenhagen-bounds-limit10_20260316_125502.json")
     cph_df = cph_df[cph_df["businessStatus"] == "OPERATIONAL"]
 
-    # unwrap the dictionaries in the DF
+    # unwrap the dictionaries in the DF and prepare for plotting
     cph_df["lat"] = cph_df["location"].apply(lambda x: x["latitude"])
     cph_df["lon"] = cph_df["location"].apply(lambda x: x["longitude"])
     cph_df["displayName"] = cph_df["displayName"].apply(lambda x: x["text"] if isinstance(x, dict) else x)
@@ -48,12 +19,6 @@ def get_df():
     cph_df["priceLabel"] = cph_df["priceRange"].apply(get_price_label)
     cph_df["midPrice"] = cph_df["priceRange"].apply(get_mid_price)
     cph_df["ratingLabel"] = cph_df["rating"].apply(get_ratings_label)
-    # cph_df["ratingLabel"] = cph_df.apply(
-    #     lambda r: f"{r['rating']} ⭐ ({int(r['userRatingCount'])} reviews)"
-    #     if pd.notna(r.get("rating")) and pd.notna(r.get("userRatingCount"))
-    #     else "No rating",
-    #     axis=1,
-    # )
 
     return cph_df
 
