@@ -1,5 +1,6 @@
 import math
 
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import streamlit as st
@@ -43,7 +44,7 @@ def get_price_label(price_range):
     except (TypeError, KeyError, ValueError):
         return "Unknown price range"
 
-def get_figure(df):
+def get_scatter_map(df):
     fig = px.scatter_map(
         cph_df,
         lat="lat",
@@ -83,7 +84,106 @@ def get_figure(df):
 
     return fig
 
-cph_df = get_df()
-fig = get_figure(cph_df)
+def get_2d_hist(df):
+    fig = px.density_map(
+        df,
+        lat="lat",
+        lon="lon",
+        radius=4,
+        zoom=9,
+        center={"lat": 55.6761, "lon": 12.5683},
+        color_continuous_scale=px.colors.sequential.Viridis,
+        title="Restaurant Density across Copenhagen",
+    )
 
-st.plotly_chart(fig)
+    fig.update_layout(
+        coloraxis=dict(
+            colorscale=px.colors.sequential.Viridis,
+            colorbar_title="Density",
+        ),
+        map_style="light",
+        margin={"r": 0, "t": 40, "l": 0, "b": 0}
+    )
+
+    fig.update_traces(hovertemplate=None, hoverinfo="skip")
+
+    return fig
+
+def get_2d_hist_np(df, bins=100):
+    # bin lat/lon into a 2D grid
+    lat_bins = np.linspace(df["lat"].min(), df["lat"].max(), bins + 1)
+    lon_bins = np.linspace(df["lon"].min(), df["lon"].max(), bins + 1)
+
+    counts, _, _ = np.histogram2d(df["lat"], df["lon"], bins=[lat_bins, lon_bins])
+    print(counts)
+
+    # build one rectangle per bin as a GeoJSON feature
+    features = []
+    # loop over every cell in the grid
+    for i in range(bins):
+        for j in range(bins):
+            count = int(counts[i, j])
+            # skip empty cells so they don't render on the map
+            if count == 0:
+                continue
+            # lookup the four corners of the cell 
+            lat0, lat1 = float(lat_bins[i]), float(lat_bins[i + 1])
+            lon0, lon1 = float(lon_bins[j]), float(lon_bins[j + 1])
+            # and append it as a GeoJSON polygon feature
+            features.append({
+                "type": "Feature",
+                "id": f"{i}-{j}",
+                "properties": {"count": count},
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [[
+                        [lon0, lat0], [lon1, lat0],
+                        [lon1, lat1], [lon0, lat1],
+                        [lon0, lat0],
+                    ]],
+                },
+            })
+
+    geojson = {"type": "FeatureCollection", "features": features}
+    bin_df = pd.DataFrame([f["properties"] | {"id": f["id"]} for f in features])
+
+    fig = px.choropleth_map(
+        bin_df,
+        geojson=geojson,
+        locations="id",
+        color="count",
+        color_continuous_scale=px.colors.sequential.Viridis,
+        opacity=0.6,
+        zoom=10,
+        hover_data={
+            "id": True,
+            "count": True,
+        },
+        center={"lat": 55.6761, "lon": 12.5683},
+        title="Copenhagen Restaurants – 2D Histogram",
+    )
+
+    fig.update_layout(
+        coloraxis=dict(
+            colorbar_title="No. of Restaurants",
+        ),
+        map_style="light",
+        margin={"r": 0, "t": 40, "l": 0, "b": 0}
+    )
+
+    fig.update_traces(
+        hovertemplate="Bin ID: %{customdata[0]}<br>"
+                    "Count: %{customdata[1]}<br>"
+                    "<extra></extra>"
+    )
+
+    return fig
+
+cph_df = get_df()
+scatter_map = get_scatter_map(cph_df)
+histogram_map = get_2d_hist(cph_df)
+histogram_map_np = get_2d_hist_np(cph_df, 100)
+
+st.plotly_chart(scatter_map)
+st.plotly_chart(histogram_map)
+st.plotly_chart(histogram_map_np)
