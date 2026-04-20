@@ -7,6 +7,7 @@ import streamlit as st
 
 from config import DATA_DIR
 
+# TODO add descriptions
 
 def get_df():
     cph_df = pd.read_json(DATA_DIR / "copenhagen-bounds-limit10_20260316_125502.json")
