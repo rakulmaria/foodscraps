@@ -47,7 +47,7 @@ def get_price_label(price_range):
 
 def get_scatter_map(df):
     fig = px.scatter_map(
-        cph_df,
+        df,
         lat="lat",
         lon="lon",
         hover_name="displayName",
@@ -116,7 +116,6 @@ def get_2d_hist_np(df, bins=100):
     lon_bins = np.linspace(df["lon"].min(), df["lon"].max(), bins + 1)
 
     counts, _, _ = np.histogram2d(df["lat"], df["lon"], bins=[lat_bins, lon_bins])
-    print(counts)
 
     # build one rectangle per bin as a GeoJSON feature
     features = []
@@ -180,11 +179,48 @@ def get_2d_hist_np(df, bins=100):
 
     return fig
 
+def get_primary_restaurant_top20(df):
+    # Calculate fraction % for each primaryTypeDisplayName
+    type_counts_top20 = cph_df["primaryTypeDisplayName"].value_counts().head(20)
+    type_frac_top20 = (type_counts_top20 / len(cph_df) * 100).reset_index().round(2)
+    type_frac_top20 = type_frac_top20.rename(columns={"count" : "fraction"})
+
+    fig = px.bar(
+        type_frac_top20,
+        x="primaryTypeDisplayName",
+        y="fraction",
+        title="Top 20 Restaurant Types in Copenhagen",
+        labels={
+            "primaryTypeDisplayName": "Restaurant Type",
+            "fraction": "Fraction (%)"
+        },
+    )
+
+    fig.update_traces(
+        texttemplate="%{y:.1f}%",
+        textposition="outside",
+        hovertemplate=None,
+        hoverinfo="skip",
+    )
+
+    fig.update_layout(
+        xaxis_tickangle=-45,
+        yaxis=dict(range=[0, type_frac_top20["fraction"].max() * 1.15]),
+        height=600,
+        # plot_bgcolor="white",
+        showlegend=False,
+    )
+
+    return fig
+
+
 cph_df = get_df()
 scatter_map = get_scatter_map(cph_df)
 histogram_map = get_2d_hist(cph_df)
 histogram_map_np = get_2d_hist_np(cph_df, 100)
+primary_restaurant_top20 = get_primary_restaurant_top20(cph_df)
 
 st.plotly_chart(scatter_map)
 st.plotly_chart(histogram_map)
 st.plotly_chart(histogram_map_np)
+st.plotly_chart(primary_restaurant_top20)
