@@ -51,7 +51,7 @@ def make_request(url, body, headers=HEADERS):
 
 # --- API calls to google maps
 # @function_timer()
-def search_nearby(lat, lon, radius):
+def nearby_search(lat, lon, radius):
     """uses Nearby Search from Placse API (New) to fetch restaurants near to a centerpoint"""
     url = "https://places.googleapis.com/v1/places:searchNearby"
     body = {
@@ -73,59 +73,46 @@ def search_nearby(lat, lon, radius):
 
 
 # @function_timer()
-def find_aggregated_places(coordinates, useRegionFilter=False):
+def find_aggregated_places(coordinates):
     """uses Places Aggregated API to fetch aggregated count of restaurants in an area
     initially used to find total count of restaurants in CPH
     """
     url = "https://areainsights.googleapis.com/v1:computeInsights"
-    
-    if useRegionFilter:
-        body = {
-            "insights": ["INSIGHT_COUNT", "INSIGHT_PLACES"],
-            "filter": {
-                "locationFilter": {
-                    "region": {
-                        "place": "places/ChIJIz2AXDxTUkYRuGeU5t1-3QQ"  # copenhagen ID
+
+    body = {
+        "insights": ["INSIGHT_COUNT"],
+        "filter": {
+            "locationFilter": {
+                "customArea": {
+                    "polygon": {
+                        "coordinates": [
+                            {  # NW
+                                "latitude": coordinates["lat_north"],
+                                "longitude": coordinates["lon_west"],
+                            },
+                            {  # SW
+                                "latitude": coordinates["lat_south"],
+                                "longitude": coordinates["lon_west"],
+                            },
+                            {  # SE
+                                "latitude": coordinates["lat_south"],
+                                "longitude": coordinates["lon_east"],
+                            },
+                            {  # NE
+                                "latitude": coordinates["lat_north"],
+                                "longitude": coordinates["lon_east"],
+                            },
+                            {  # NW: closes the loop
+                                "latitude": coordinates["lat_north"],
+                                "longitude": coordinates["lon_west"],
+                            },
+                        ]
                     }
-                },
-                "typeFilter": {"includedTypes": "restaurant"},
+                }
             },
-        }
-    else:
-        body = {
-            "insights": ["INSIGHT_COUNT", "INSIGHT_PLACES"],
-            "filter": {
-                "locationFilter": {
-                    "customArea": {
-                        "polygon": {
-                            "coordinates": [
-                                {  # NW
-                                    "latitude": coordinates["lat_north"],
-                                    "longitude": coordinates["lon_west"],
-                                },
-                                {  # SW
-                                    "latitude": coordinates["lat_south"],
-                                    "longitude": coordinates["lon_west"],
-                                },
-                                {  # SE
-                                    "latitude": coordinates["lat_south"],
-                                    "longitude": coordinates["lon_east"],
-                                },
-                                {  # NE
-                                    "latitude": coordinates["lat_north"],
-                                    "longitude": coordinates["lon_east"],
-                                },
-                                {  # NW: closes the loop
-                                    "latitude": coordinates["lat_north"],
-                                    "longitude": coordinates["lon_west"],
-                                },
-                            ]
-                        }
-                    }
-                },
-                "typeFilter": {"includedTypes": "restaurant"},
-            },
-        }
+            "typeFilter": {"includedTypes": "restaurant"},
+        },
+    }
 
     response = make_request(url, body)
 
@@ -134,11 +121,12 @@ def find_aggregated_places(coordinates, useRegionFilter=False):
 
 # @function_timer()
 def search_text(text_query):
-    """uses Text Search from Placse API (New) to fetch restaurants based on a prompt
+    """ -- NIU --
+    uses Text Search from Placse API (New) to fetch restaurants based on a prompt 
     ! needs to be handled with caution
     """
     url = "https://places.googleapis.com/v1/places:searchText"
-    body = {"textQuery": text_query}
+    body = { "textQuery" : text_query }
 
     response = make_request(url, body)
     return response
@@ -156,9 +144,6 @@ def save_to_json(data, prefix="results"):
 
 @function_timer()
 def main():
-    # prompts
-    # carlsberg_byen = "Restaurants in area Carlsberg Byen, Copenhagen"
-    # place = search_text(carlsberg_byen)
 
     # save_to_json(place)
     results = find_aggregated_places(COPENHAGEN_BOUNDS)
