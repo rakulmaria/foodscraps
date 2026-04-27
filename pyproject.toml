@@ -11,6 +11,7 @@ dependencies = [
     "google-auth>=2.48.0",
     "google-maps-areainsights>=0.3.0",
     "ipykernel>=7.2.0",
+    "kaleido>=1.2.0",
     "matplotlib>=3.10.8",
     "nbformat>=5.10.4",
     "node>=2.0.0",
