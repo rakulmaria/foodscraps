@@ -1,6 +1,4 @@
-import json
 import math
-import pathlib
 
 import numpy as np
 import pandas as pd
@@ -223,8 +221,8 @@ def collect_leaf_bboxes(restaurants, lat_s, lat_n, lon_w, lon_e):
     for s, n, w, e in quadrants:
         subset = [
             r for r in restaurants
-            if s <= r["location"]["latitude"] <= n
-            and w <= r["location"]["longitude"] <= e
+            if s <= r["lat"] <= n
+            and w <= r["lon"] <= e
         ]
         leaves.extend(collect_leaf_bboxes(subset, s, n, w, e))
     return leaves
@@ -236,20 +234,15 @@ def bbox_to_line(lat_s, lat_n, lon_w, lon_e):
     lons = [lon_w, lon_w, lon_e, lon_e, lon_w, None]
     return lats, lons
 
-DATA_FILE = pathlib.Path(__file__).parent.parent / "data" / "copenhagen-bounds-limit10_20260316_125502.json"
-
-def get_quadtree():
-    with open(DATA_FILE) as f:
-        restaurants = json.load(f)
-
+def get_quadtree(df):
     COPENHAGEN_BOUNDS = {
         "lat_south": 55.51,
         "lat_north": 55.82,
         "lon_west": 12.23,
         "lon_east": 12.73,
     }
-    # filter out any entries missing location (defensive)
-    restaurants = [r for r in restaurants if "latitude" in r.get("location", {})]
+
+    restaurants = df[["lat", "lon"]].to_dict("records")
 
     leaf_bboxes = collect_leaf_bboxes(
         restaurants,
@@ -266,8 +259,8 @@ def get_quadtree():
         all_lats.extend(lats)
         all_lons.extend(lons)
 
-    rest_lats = [r["location"]["latitude"] for r in restaurants]
-    rest_lons = [r["location"]["longitude"] for r in restaurants]
+    rest_lats = df["lat"].tolist()
+    rest_lons = df["lon"].tolist()
 
     fig = go.Figure()
 
@@ -306,7 +299,7 @@ scatter_map = get_scatter_map(cph_df)
 histogram_map = get_2d_hist(cph_df)
 histogram_map_np = get_2d_hist_np(cph_df, 100)
 primary_restaurant_top20 = get_primary_restaurant_top20(cph_df)
-quadtree_fig = get_quadtree()
+quadtree_fig = get_quadtree(cph_df)
 
 st.plotly_chart(scatter_map)
 st.plotly_chart(histogram_map)
