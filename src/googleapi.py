@@ -8,10 +8,8 @@ import requests
 from timer import function_timer
 
 from config import DATA_DIR
-from logger import setup_logger
 
 function_timer = partial(function_timer, decimals=5)
-
 
 # --- logger
 logger = logging.getLogger(__name__)
@@ -23,23 +21,6 @@ HEADERS = {
     "X-Goog-Api-Key": API_KEY,
     "X-Goog-FieldMask": "*",  # what i want to be included in the respond
 }
-
-# bounds found from here: https://epsg.io/4693-area
-COPENHAGEN_BOUNDS = {
-    "lat_south": 55.51,
-    "lat_north": 55.82,
-    "lon_west": 12.23,
-    "lon_east": 12.73,
-}
-
-# mini bounding box, used for testing purpose
-MINI_BOX = {
-    "lat_north": 55.669764,
-    "lat_south": 55.667723,
-    "lon_west": 12.542044,
-    "lon_east": 12.554734,
-}
-
 
 # @function_timer()
 def make_request(url, body, headers=HEADERS):
@@ -140,17 +121,3 @@ def save_to_json(data, prefix="results"):
 
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
-
-
-@function_timer()
-def main():
-
-    # save_to_json(place)
-    results = find_aggregated_places(COPENHAGEN_BOUNDS)
-
-    logger.info(results)
-
-
-if __name__ == "__main__":
-    setup_logger()
-    main()
