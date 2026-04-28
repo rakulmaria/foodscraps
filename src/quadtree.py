@@ -110,7 +110,7 @@ def build_quadtree(bounding_box, depth=0):
     # buffer to respect API rate limits
     time.sleep(0.1)
 
-    results = googleapi.search_nearby(center_lat, center_lon, radius)
+    results = googleapi.nearby_search(center_lat, center_lon, radius)
 
     logger.debug(f"{indent}-> Got {len(results)} results")
 
