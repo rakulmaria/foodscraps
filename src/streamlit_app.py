@@ -31,12 +31,14 @@ def get_price_label(price_range):
         return "Unknown price range"
 
 def get_scatter_map(df):
-    df["priceLabel"] = df["priceRange"].apply(get_price_label)
-    df["midPrice"] = df["priceRange"].apply(get_mid_price)
-    df["ratingLabel"] = df["rating"].apply(get_ratings_label)
+    plot_df = df.copy()
+
+    plot_df["priceLabel"] = plot_df["priceRange"].apply(get_price_label)
+    plot_df["midPrice"] = plot_df["priceRange"].apply(get_mid_price)
+    plot_df["ratingLabel"] = plot_df["rating"].apply(get_ratings_label)
 
     fig = px.scatter_map(
-        df,
+        plot_df,
         lat="lat",
         lon="lon",
         hover_name="displayName",
@@ -75,8 +77,9 @@ def get_scatter_map(df):
     return fig
 
 def get_2d_hist(df):
+    plot_df = df.copy()
     fig = px.density_map(
-        df,
+        plot_df,
         lat="lat",
         lon="lon",
         radius=4,
@@ -101,10 +104,11 @@ def get_2d_hist(df):
 
 def get_2d_hist_np(df, bins=100):
     # bin lat/lon into a 2D grid
-    lat_bins = np.linspace(df["lat"].min(), df["lat"].max(), bins + 1)
-    lon_bins = np.linspace(df["lon"].min(), df["lon"].max(), bins + 1)
+    plot_df = df.copy()
+    lat_bins = np.linspace(plot_df["lat"].min(), plot_df["lat"].max(), bins + 1)
+    lon_bins = np.linspace(plot_df["lon"].min(), plot_df["lon"].max(), bins + 1)
 
-    counts, _, _ = np.histogram2d(df["lat"], df["lon"], bins=[lat_bins, lon_bins])
+    counts, _, _ = np.histogram2d(plot_df["lat"], plot_df["lon"], bins=[lat_bins, lon_bins])
 
     # build one rectangle per bin as a GeoJSON feature
     features = []
@@ -170,12 +174,12 @@ def get_2d_hist_np(df, bins=100):
 
 def get_primary_restaurant_top20(df):
     # calculate fraction % for each primaryTypeDisplayName
-    type_counts_top20 = cph_df["primaryTypeDisplayName"].value_counts().head(20)
-    type_frac_top20 = (type_counts_top20 / len(cph_df) * 100).reset_index().round(2)
-    type_frac_top20 = type_frac_top20.rename(columns={"count" : "fraction"})
+    type_counts_top20 = df["primaryTypeDisplayName"].value_counts().head(20)
+    plot_df = (type_counts_top20 / len(df) * 100).reset_index().round(2)
+    plot_df = plot_df.rename(columns={"count" : "fraction"})
 
     fig = px.bar(
-        type_frac_top20,
+        plot_df,
         x="primaryTypeDisplayName",
         y="fraction",
         title="Top 20 Restaurant Types in Copenhagen",
@@ -194,7 +198,7 @@ def get_primary_restaurant_top20(df):
 
     fig.update_layout(
         xaxis_tickangle=-45,
-        yaxis=dict(range=[0, type_frac_top20["fraction"].max() * 1.15]),
+        yaxis=dict(range=[0, plot_df["fraction"].max() * 1.15]),
         height=600,
         showlegend=False,
     )
@@ -288,8 +292,279 @@ def get_quadtree(df):
             center=dict(lat=55.665, lon=12.48),
             zoom=9,
         ),
-        margin=dict(l=0, r=0, t=0, b=0),
+        margin={"r": 0, "t": 0, "l": 0, "b": 0},
         height=500,
+    )
+
+    return fig
+
+
+def get_district(postal_code: str) -> str | None:
+    # ── valid postal codes for Copenhagen + Frederiksberg municipalities ──────────
+    # Source: worldpostalcode.com (Copenhagen municipality + Frederiksberg kommune)
+    CPH_POSTAL_CODES = set([
+        # København K — 1050–1473 (individual codes, not a solid range)
+        *range(1050, 1474),
+        # København V — 1500–1799
+        *range(1500, 1800),
+        # Frederiksberg C — 1800–1974
+        *range(1800, 1975),
+        # Frederiksberg — 2000
+        2000,
+        # København Ø — 2100
+        2100,
+        # Nordhavn — 2150
+        2150,
+        # København N — 2200
+        2200,
+        # København S — 2300
+        2300,
+        # København NV — 2400
+        2400,
+        # København SV — 2450
+        2450,
+        # Valby — 2500
+        2500,
+        # Brønshøj — 2700
+        2700,
+        # Vanløse — 2720
+        2720,
+    ])
+    
+    try:
+        code = int(postal_code)
+    except (ValueError, TypeError):
+        return None
+
+    if code not in CPH_POSTAL_CODES:
+        return None
+
+    if 1050 <= code <= 1473:
+        return "København K (Center)"
+    elif 1500 <= code <= 1799:
+        return "København V (Vesterbro)"
+    elif 1800 <= code <= 1999:
+        return "Frederiksberg C"
+    elif code == 2000:
+        return "Frederiksberg"
+    elif code == 2100:
+        return "København Ø (Østerbro)"
+    elif code == 2150:
+        return "Nordhavn"
+    elif code == 2200:
+        return "København N (Nørrebro)"
+    elif code == 2300:
+        return "København S (Sundby/Amager)"
+    elif code == 2400:
+        return "København NV (Nordvest)"
+    elif code == 2450:
+        return "København SV (Sydhavn)"
+    elif code == 2500:
+        return "Valby"
+    elif code == 2700:
+        return "Brønshøj"
+    elif code == 2720:
+        return "Vanløse"
+
+    return None
+
+
+def get_vegetarian_bar(df):
+    COLORS = {
+        "Serves vegetarian food":         "#6e995f",
+        "Does not serve vegetarian food":  "#ff6e6e",
+        "No data":                         "#A2A2A2",
+    }
+    # ── extract postal code from dict ─────────────────────────────────────────
+    df["postalCode"] = df["postalAddress"].apply(
+        lambda x: x.get("postalCode", None) if isinstance(x, dict) else None
+    )
+
+    # ── map to district, drop rows outside CPH/Frederiksberg ─────────────────
+    df["district"] = df["postalCode"].apply(get_district)
+    plot_df = df[df["district"].notna()].copy()
+
+    # ── normalise float64 boolean → readable label ────────────────────────────
+    plot_df["veg_label"] = (
+        plot_df["servesVegetarianFood"]
+        .map({1.0: "Serves vegetarian food", 0.0: "Does not serve vegetarian food"})
+        .fillna("No data")
+    )
+
+    # ── compute fractional breakdown + total n per district ───────────────────
+    counts = (
+        plot_df.groupby(["district", "veg_label"])
+        .size()
+        .reset_index(name="count")
+    )
+    district_totals = plot_df.groupby("district").size().rename("total")
+    counts = counts.join(district_totals, on="district")
+    counts["fraction"] = counts["count"] / counts["total"]
+
+    # pivot fractions
+    pivot = (
+        counts.pivot(index="district", columns="veg_label", values="fraction")
+        .fillna(0)
+        .reset_index()
+    )
+    # attach total n per district
+    pivot = pivot.join(district_totals, on="district")
+
+    # ── sort by vegetarian fraction descending (ascending=True → top of h-bar) ─
+    veg_col = "Serves vegetarian food"
+    if veg_col in pivot.columns:
+        pivot = pivot.sort_values(veg_col, ascending=True)
+
+    districts  = pivot["district"].tolist()
+    totals_per = pivot["total"].tolist()
+
+    # ── build stacked horizontal bar traces ───────────────────────────────────
+    category_order = [
+        "Serves vegetarian food",
+        "Does not serve vegetarian food",
+        "No data",
+    ]
+
+    fig = go.Figure()
+
+    for label in category_order:
+        if label not in pivot.columns:
+            continue
+
+        fractions = pivot[label].tolist()
+        text_labels = [f"{v:.0%}" if v >= 0.04 else "" for v in fractions]
+
+        fig.add_trace(go.Bar(
+            name=label,
+            y=districts,
+            x=fractions,
+            orientation="h",
+            marker_color=COLORS[label],
+            text=text_labels,
+            textposition="inside",
+            insidetextanchor="middle",
+            textfont=dict(color="white", size=12, family="monospace"),
+            hovertemplate=(
+                "<b>%{y}</b><br>"
+                f"{label}: %{{x:.1%}}<br>"
+                "n (district total): %{customdata}<br>"
+                "<extra></extra>"
+            ),
+            customdata=totals_per,
+        ))
+
+    # ── n= annotations on the right edge of each bar ─────────────────────────
+    annotations = [
+        dict(
+            x=1.01,
+            y=district,
+            text=f"n={n}",
+            showarrow=False,
+            xref="x",
+            yref="y",
+            xanchor="left",
+            font=dict(size=11, color="#555555", family="monospace"),
+        )
+        for district, n in zip(districts, totals_per)
+    ]
+
+    # ── layout ────────────────────────────────────────────────────────────────
+    fig.update_layout(
+        barmode="stack",
+        annotations=annotations,
+        title=dict(
+            text=(
+                "<b>Vegetarian food availability by district</b>"
+            ),
+            x=0,
+            xanchor="left",
+        ),
+        xaxis=dict(
+            tickformat=".0%",
+            range=[0, 1.12],   # extra room for n= labels
+            title="Share of restaurants",
+            showgrid=True,
+        ),
+        yaxis=dict(
+            type="category",
+            title=None,
+            automargin=True,
+        ),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="left",
+            x=0,
+        ),
+        margin={"r": 60, "t": 80, "l": 20, "b": 40},
+    )
+
+    return fig
+
+def get_rating_vs_price_box(df):
+    bin_size = 100
+    min_n = 30
+
+    plot_df = df.copy()
+    plot_df["midPrice"] = plot_df["priceRange"].apply(get_mid_price)
+    plot_df = plot_df[plot_df["midPrice"].notna() & plot_df["rating"].notna()].copy()
+
+    min_price = (plot_df["midPrice"].min() // bin_size) * bin_size
+    max_price = (plot_df["midPrice"].max() // bin_size) * bin_size + bin_size
+
+    bins   = np.arange(min_price, max_price + bin_size, bin_size)
+    labels = [f"{int(b)}–{int(b + bin_size)} DKK" for b in bins[:-1]]
+
+    plot_df["pricebin"] = pd.cut(
+        plot_df["midPrice"],
+        bins=bins,
+        labels=labels,
+        right=False,
+        include_lowest=True,
+    )
+
+    bin_counts    = plot_df["pricebin"].value_counts()
+    valid_bins    = [l for l in labels if bin_counts.get(l, 0) >= min_n]
+    excluded_bins = [l for l in labels if 0 < bin_counts.get(l, 0) < min_n]
+
+    plot_df = plot_df[plot_df["pricebin"].astype(str).isin(valid_bins)]
+    bin_counts_valid = plot_df["pricebin"].value_counts()
+
+    total    = len(plot_df)
+    excluded = len(df) - total
+
+    fig = px.box(
+        plot_df,
+        x="pricebin",
+        y="rating",
+        category_orders={"pricebin": valid_bins},
+        points="outliers",
+        labels={"pricebin": "Mid-price bin (DKK)", "rating": "Rating"},
+        title=(
+            "<b>Restaurant rating by price range</b>"
+            f"<br><sup>n = {total:,} restaurants · "
+            + (f"excluded bins with n < {min_n}: {', '.join(excluded_bins)} · " if excluded_bins else "")
+            + (f"{excluded:,} excluded (missing price or rating)" if excluded else "")
+            + "</sup>"
+        ),
+    )
+
+    fig.update_layout(
+        margin={"r": 20, "t": 80, "l": 20, "b": 60},
+        yaxis=dict(range=[1, 5.4], dtick=0.5),
+        annotations=[
+            dict(
+                x=bin_label,
+                y=1,
+                yref="paper",
+                yanchor="top",
+                text=f"n={bin_counts_valid.get(bin_label, 0)}",
+                showarrow=False,
+                font=dict(size=11, color="#555555", family="monospace"),
+            )
+            for bin_label in valid_bins
+        ],
     )
 
     return fig
@@ -300,7 +575,11 @@ histogram_map = get_2d_hist(cph_df)
 histogram_map_np = get_2d_hist_np(cph_df, 100)
 primary_restaurant_top20 = get_primary_restaurant_top20(cph_df)
 quadtree_fig = get_quadtree(cph_df)
+vegetarian_map = get_vegetarian_bar(cph_df)
+rating_vs_price_boxplot = get_rating_vs_price_box(cph_df)
 
+st.plotly_chart(rating_vs_price_boxplot)
+st.plotly_chart(vegetarian_map)
 st.plotly_chart(scatter_map)
 st.plotly_chart(histogram_map)
 st.plotly_chart(histogram_map_np)
