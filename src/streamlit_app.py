@@ -8,7 +8,6 @@ import streamlit as st
 
 from data_cleaner import get_df
 
-SPLIT_THRESHOLD = 10
 
 def get_ratings_label(rating):
     if math.isnan(rating):
@@ -204,7 +203,8 @@ def get_primary_restaurant_top20(df):
 
 def collect_leaf_bboxes(restaurants, lat_s, lat_n, lon_w, lon_e):
     """Recursively split a cell if it holds >= SPLIT_THRESHOLD restaurants."""
-    if len(restaurants) < SPLIT_THRESHOLD:
+    split_treshold = 10
+    if len(restaurants) < split_treshold:
         return [(lat_s, lat_n, lon_w, lon_e)]
 
     mid_lat = (lat_s + lat_n) / 2
@@ -235,7 +235,7 @@ def bbox_to_line(lat_s, lat_n, lon_w, lon_e):
     return lats, lons
 
 def get_quadtree(df):
-    COPENHAGEN_BOUNDS = {
+    cph_bbox = {
         "lat_south": 55.51,
         "lat_north": 55.82,
         "lon_west": 12.23,
@@ -246,10 +246,10 @@ def get_quadtree(df):
 
     leaf_bboxes = collect_leaf_bboxes(
         restaurants,
-        COPENHAGEN_BOUNDS["lat_south"],
-        COPENHAGEN_BOUNDS["lat_north"],
-        COPENHAGEN_BOUNDS["lon_west"],
-        COPENHAGEN_BOUNDS["lon_east"],
+        cph_bbox["lat_south"],
+        cph_bbox["lat_north"],
+        cph_bbox["lon_west"],
+        cph_bbox["lon_east"],
     )
 
     # batch all rectangles into one trace using None separators
