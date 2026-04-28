@@ -1,12 +1,16 @@
+import json
 import math
+import pathlib
 
 import numpy as np
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 
 from data_cleaner import get_df
 
+SPLIT_THRESHOLD = 10
 
 def get_ratings_label(rating):
     if math.isnan(rating):
@@ -200,14 +204,112 @@ def get_primary_restaurant_top20(df):
 
     return fig
 
+def collect_leaf_bboxes(restaurants, lat_s, lat_n, lon_w, lon_e):
+    """Recursively split a cell if it holds >= SPLIT_THRESHOLD restaurants."""
+    if len(restaurants) < SPLIT_THRESHOLD:
+        return [(lat_s, lat_n, lon_w, lon_e)]
+
+    mid_lat = (lat_s + lat_n) / 2
+    mid_lon = (lon_w + lon_e) / 2
+
+    quadrants = [
+        (mid_lat, lat_n, lon_w, mid_lon),  # NW
+        (mid_lat, lat_n, mid_lon, lon_e),  # NE
+        (lat_s, mid_lat, lon_w, mid_lon),  # SW
+        (lat_s, mid_lat, mid_lon, lon_e),  # SE
+    ]
+
+    leaves = []
+    for s, n, w, e in quadrants:
+        subset = [
+            r for r in restaurants
+            if s <= r["location"]["latitude"] <= n
+            and w <= r["location"]["longitude"] <= e
+        ]
+        leaves.extend(collect_leaf_bboxes(subset, s, n, w, e))
+    return leaves
+
+
+def bbox_to_line(lat_s, lat_n, lon_w, lon_e):
+    """Closed rectangle as (lats, lons) lists, terminated by None for batching."""
+    lats = [lat_s, lat_n, lat_n, lat_s, lat_s, None]
+    lons = [lon_w, lon_w, lon_e, lon_e, lon_w, None]
+    return lats, lons
+
+DATA_FILE = pathlib.Path(__file__).parent.parent / "data" / "copenhagen-bounds-limit10_20260316_125502.json"
+
+def get_quadtree():
+    with open(DATA_FILE) as f:
+        restaurants = json.load(f)
+
+    COPENHAGEN_BOUNDS = {
+        "lat_south": 55.51,
+        "lat_north": 55.82,
+        "lon_west": 12.23,
+        "lon_east": 12.73,
+    }
+    # filter out any entries missing location (defensive)
+    restaurants = [r for r in restaurants if "latitude" in r.get("location", {})]
+
+    leaf_bboxes = collect_leaf_bboxes(
+        restaurants,
+        COPENHAGEN_BOUNDS["lat_south"],
+        COPENHAGEN_BOUNDS["lat_north"],
+        COPENHAGEN_BOUNDS["lon_west"],
+        COPENHAGEN_BOUNDS["lon_east"],
+    )
+
+    # batch all rectangles into one trace using None separators
+    all_lats, all_lons = [], []
+    for bbox in leaf_bboxes:
+        lats, lons = bbox_to_line(*bbox)
+        all_lats.extend(lats)
+        all_lons.extend(lons)
+
+    rest_lats = [r["location"]["latitude"] for r in restaurants]
+    rest_lons = [r["location"]["longitude"] for r in restaurants]
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scattermap(
+        lat=all_lats,
+        lon=all_lons,
+        mode="lines",
+        line=dict(color="royalblue", width=0.8),
+        hoverinfo="skip",
+        showlegend=False,
+    ))
+
+    fig.add_trace(go.Scattermap(
+        lat=rest_lats,
+        lon=rest_lons,
+        mode="markers",
+        marker=dict(size=3, color="black", opacity=0.45),
+        hoverinfo="skip",
+        showlegend=False,
+    ))
+
+    fig.update_layout(
+        map=dict(
+            style="carto-positron",
+            center=dict(lat=55.665, lon=12.48),
+            zoom=9,
+        ),
+        margin=dict(l=0, r=0, t=0, b=0),
+        height=500,
+    )
+
+    return fig
 
 cph_df = get_df()
 scatter_map = get_scatter_map(cph_df)
 histogram_map = get_2d_hist(cph_df)
 histogram_map_np = get_2d_hist_np(cph_df, 100)
 primary_restaurant_top20 = get_primary_restaurant_top20(cph_df)
+quadtree_fig = get_quadtree()
 
 st.plotly_chart(scatter_map)
 st.plotly_chart(histogram_map)
 st.plotly_chart(histogram_map_np)
 st.plotly_chart(primary_restaurant_top20)
+st.plotly_chart(quadtree_fig)
