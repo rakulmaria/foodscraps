@@ -5,24 +5,8 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from config import DATA_DIR
+from data_cleaner import get_df
 
-# TODO add descriptions
-
-def get_df():
-    cph_df = pd.read_json(DATA_DIR / "copenhagen-bounds-limit10_20260316_125502.json")
-    cph_df = cph_df[cph_df["businessStatus"] == "OPERATIONAL"]
-
-    # unwrap the dictionaries in the DF and prepare for plotting
-    cph_df["lat"] = cph_df["location"].apply(lambda x: x["latitude"])
-    cph_df["lon"] = cph_df["location"].apply(lambda x: x["longitude"])
-    cph_df["displayName"] = cph_df["displayName"].apply(lambda x: x["text"] if isinstance(x, dict) else x)
-    cph_df["primaryTypeDisplayName"] = cph_df["primaryTypeDisplayName"].apply(lambda x: x["text"] if isinstance(x, dict) else x)
-    cph_df["priceLabel"] = cph_df["priceRange"].apply(get_price_label)
-    cph_df["midPrice"] = cph_df["priceRange"].apply(get_mid_price)
-    cph_df["ratingLabel"] = cph_df["rating"].apply(get_ratings_label)
-
-    return cph_df
 
 def get_ratings_label(rating):
     if math.isnan(rating):
@@ -46,6 +30,10 @@ def get_price_label(price_range):
         return "Unknown price range"
 
 def get_scatter_map(df):
+    df["priceLabel"] = df["priceRange"].apply(get_price_label)
+    df["midPrice"] = df["priceRange"].apply(get_mid_price)
+    df["ratingLabel"] = df["rating"].apply(get_ratings_label)
+
     fig = px.scatter_map(
         df,
         lat="lat",
@@ -180,7 +168,7 @@ def get_2d_hist_np(df, bins=100):
     return fig
 
 def get_primary_restaurant_top20(df):
-    # Calculate fraction % for each primaryTypeDisplayName
+    # calculate fraction % for each primaryTypeDisplayName
     type_counts_top20 = cph_df["primaryTypeDisplayName"].value_counts().head(20)
     type_frac_top20 = (type_counts_top20 / len(cph_df) * 100).reset_index().round(2)
     type_frac_top20 = type_frac_top20.rename(columns={"count" : "fraction"})
@@ -207,7 +195,6 @@ def get_primary_restaurant_top20(df):
         xaxis_tickangle=-45,
         yaxis=dict(range=[0, type_frac_top20["fraction"].max() * 1.15]),
         height=600,
-        # plot_bgcolor="white",
         showlegend=False,
     )
 
