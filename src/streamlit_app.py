@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import seaborn as sns
 import streamlit as st
 
 from data_cleaner import get_df
@@ -474,7 +475,7 @@ def get_vegetarian_bar(df):
         annotations=annotations,
         title=dict(
             text=(
-                "<b>Vegetarian food availability by district</b>"
+                "<b>Vegetarian food availability by district (inner CPH only)</b>"
             ),
             x=0,
             xanchor="left",
@@ -525,8 +526,8 @@ def get_rating_vs_price_box(df):
     )
 
     bin_counts    = plot_df["pricebin"].value_counts()
-    valid_bins    = [l for l in labels if bin_counts.get(l, 0) >= min_n]
-    excluded_bins = [l for l in labels if 0 < bin_counts.get(l, 0) < min_n]
+    valid_bins    = [lab for lab in labels if bin_counts.get(lab, 0) >= min_n]
+    excluded_bins = [lab for lab in labels if 0 < bin_counts.get(lab, 0) < min_n]
 
     plot_df = plot_df[plot_df["pricebin"].astype(str).isin(valid_bins)]
     bin_counts_valid = plot_df["pricebin"].value_counts()
@@ -549,6 +550,8 @@ def get_rating_vs_price_box(df):
             + "</sup>"
         ),
     )
+
+    fig.update_traces(boxmean=True)
 
     fig.update_layout(
         margin={"r": 20, "t": 80, "l": 20, "b": 60},
@@ -580,8 +583,8 @@ rating_vs_price_boxplot = get_rating_vs_price_box(cph_df)
 
 st.plotly_chart(rating_vs_price_boxplot)
 st.plotly_chart(vegetarian_map)
-st.plotly_chart(scatter_map)
-st.plotly_chart(histogram_map)
 st.plotly_chart(histogram_map_np)
 st.plotly_chart(primary_restaurant_top20)
 st.plotly_chart(quadtree_fig)
+st.plotly_chart(scatter_map)
+st.plotly_chart(histogram_map)
