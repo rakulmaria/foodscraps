@@ -5,7 +5,7 @@ from functools import partial
 
 from timer import function_timer
 
-import googleapi
+import data_collector
 from logger import setup_logger
 
 function_timer = partial(function_timer, decimals=5)
@@ -110,7 +110,7 @@ def build_quadtree(bounding_box, depth=0):
     # buffer to respect API rate limits
     time.sleep(0.1)
 
-    results = googleapi.nearby_search(center_lat, center_lon, radius)
+    results = data_collector.nearby_search(center_lat, center_lon, radius)
 
     logger.debug(f"{indent}-> Got {len(results)} results")
 
@@ -185,7 +185,7 @@ def main():
     restaurants = collect_results(root)
     logger.info(f"Done! Found {len(restaurants)} unique restaurants.")
 
-    googleapi.save_to_json(restaurants, "copenhagen-bounds")
+    data_collector.save_to_json(restaurants, "copenhagen-bounds")
 
     for r in restaurants:
         name = r.get("displayName", {}).get("text", "Unknown")
