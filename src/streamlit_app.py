@@ -86,7 +86,7 @@ def get_2d_hist(df):
         zoom=9,
         center={"lat": 55.6761, "lon": 12.5683},
         color_continuous_scale=px.colors.sequential.Viridis,
-        title="Restaurant Density across Copenhagen",
+        title="<b>Restaurant Density across Copenhagen</b>",
     )
 
     fig.update_layout(
@@ -147,13 +147,14 @@ def get_2d_hist_np(df, bins=100):
         color="count",
         color_continuous_scale=px.colors.sequential.Viridis,
         opacity=0.6,
-        zoom=10,
+        zoom=9,
         hover_data={
             "id": True,
             "count": True,
         },
-        center={"lat": 55.6761, "lon": 12.5683},
-        title="Copenhagen Restaurants – 2D Histogram",
+        center={"lat": 55.68, "lon": 12.5},
+        title="Copenhagen Restaurants – 2D Histogram"
+        +  f"<br><sup>n = {len(plot_df):,} restaurants",
     )
 
     fig.update_layout(
@@ -182,7 +183,8 @@ def get_primary_restaurant_top20(df):
         plot_df,
         x="primaryTypeDisplayName",
         y="fraction",
-        title="Top 20 Restaurant Types in Copenhagen",
+        title="<b>Top 20 Restaurant Types in Copenhagen</b>"
+            + f"<br><sup>n = {type_counts_top20.sum():,} restaurants",
         labels={
             "primaryTypeDisplayName": "Restaurant Type",
             "fraction": "Fraction (%)"
@@ -472,13 +474,9 @@ def get_vegetarian_bar(df):
     fig.update_layout(
         barmode="stack",
         annotations=annotations,
-        title=dict(
-            text=(
-                "<b>Vegetarian food availability by district (inner CPH only)</b>"
-            ),
-            x=0,
-            xanchor="left",
-        ),
+        title="<b>Vegetarian food availability by district (inner CPH only)</b>"
+                + f"<br><sup>n = {len(plot_df):,} restaurants"
+        ,
         xaxis=dict(
             tickformat=".0%",
             range=[0, 1.12],   # extra room for n= labels
@@ -524,11 +522,20 @@ def get_rating_vs_price_box(df):
         include_lowest=True,
     )
 
-    bin_counts    = plot_df["pricebin"].value_counts()
-    valid_bins    = [lab for lab in labels if bin_counts.get(lab, 0) >= min_n]
-    excluded_bins = [lab for lab in labels if 0 < bin_counts.get(lab, 0) < min_n]
+    bin_counts = plot_df["pricebin"].value_counts()
+    valid_bin_indices = [i for i, lab in enumerate(labels) if bin_counts.get(lab, 0) >= min_n]
 
-    plot_df = plot_df[plot_df["pricebin"].astype(str).isin(valid_bins)]
+    # merge all entries >= 500 DKK into a single open-ended catch-all bin
+    plot_df["pricebin"] = plot_df["pricebin"].astype(str)
+    cutoff_price = 500
+    catchall_label = f"{cutoff_price}+ DKK"
+    plot_df.loc[plot_df["midPrice"] >= cutoff_price, "pricebin"] = catchall_label
+
+    regular_bins = [labels[i] for i in sorted(valid_bin_indices) if bins[i] < cutoff_price]
+    final_bins = regular_bins + [catchall_label]
+
+
+    plot_df = plot_df[plot_df["pricebin"].isin(final_bins)]
     bin_counts_valid = plot_df["pricebin"].value_counts()
 
     total    = len(plot_df)
@@ -538,16 +545,15 @@ def get_rating_vs_price_box(df):
         plot_df,
         x="pricebin",
         y="rating",
-        category_orders={"pricebin": valid_bins},
+        category_orders={"pricebin": final_bins},
         points="outliers",
         labels={"pricebin": "Mid-price bin (DKK)", "rating": "Rating"},
         title=(
             "<b>Restaurant rating by price range</b>"
             f"<br><sup>n = {total:,} restaurants · "
-            + (f"excluded bins with n < {min_n}: {', '.join(excluded_bins)} · " if excluded_bins else "")
-            + (f"{excluded:,} excluded (missing price or rating)" if excluded else "")
+            + (f"{excluded:,} excluded (missing price or rating).")
             + "</sup>"
-        ),
+        )
     )
 
     fig.update_traces(boxmean=True)
@@ -565,15 +571,15 @@ def get_rating_vs_price_box(df):
                 showarrow=False,
                 font=dict(size=11, color="#555555", family="monospace"),
             )
-            for bin_label in valid_bins
+            for bin_label in final_bins
         ],
     )
 
     return fig
 
 cph_df = get_df()
-scatter_map = get_scatter_map(cph_df)
-histogram_map = get_2d_hist(cph_df)
+# scatter_map = get_scatter_map(cph_df)
+# histogram_map = get_2d_hist(cph_df)
 histogram_map_np = get_2d_hist_np(cph_df, 100)
 primary_restaurant_top20 = get_primary_restaurant_top20(cph_df)
 quadtree_fig = get_quadtree(cph_df)
@@ -585,5 +591,5 @@ st.plotly_chart(vegetarian_map)
 st.plotly_chart(histogram_map_np)
 st.plotly_chart(primary_restaurant_top20)
 st.plotly_chart(quadtree_fig)
-st.plotly_chart(scatter_map)
-st.plotly_chart(histogram_map)
+# st.plotly_chart(scatter_map)
+# st.plotly_chart(histogram_map)
