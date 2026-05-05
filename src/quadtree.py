@@ -95,8 +95,8 @@ class Node:
 def build_quadtree(bounding_box, depth=0):
     """
     recursively builds a quadtree over the bounding box.
-    splits a cell into 4 if the API returns 20 (meaning it's saturated).
-    stops splitting when the cell contains < 10 results.
+    splits a cell into 4 quadrants if the API returns >= 10 results.
+    stops splitting when the cell returns < 10 results
     """
     node = Node(bounding_box)
     indent = "  " * depth
@@ -107,20 +107,16 @@ def build_quadtree(bounding_box, depth=0):
         f"{indent}Querying cell (depth={depth}): center={center_lat:.6f}, {center_lon:.6f}, radius={radius:.0f}m"
     )
 
-    # buffer to respect API rate limits
-    time.sleep(0.1)
+    time.sleep(0.1) # buffer to respect API rate limits
 
     results = data_collector.nearby_search(center_lat, center_lon, radius)
 
     logger.debug(f"{indent}-> Got {len(results)} results")
 
-    # cell is not saturated, we're done here
-    # limit set to 10 to ensure we don't miss some restaurants
-    if len(results) < 10: 
+    if len(results) < 10: # cell does not require more splitting
         node.results = results
         return node
 
-    # otherwise, cell is saturated, so we recursively split into 4 quadrants
     logger.info(f"{indent}Saturated at depth={depth} — splitting into 4 quadrants")
     for child_bounding_box in bounding_box.split_bounding_box():
         # recursively build new quadtrees and append the children to the current node
