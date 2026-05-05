@@ -153,7 +153,7 @@ def get_2d_hist_np(df, bins=100):
             "count": True,
         },
         center={"lat": 55.68, "lon": 12.5},
-        title="Copenhagen Restaurants – 2D Histogram"
+        title="<b>Copenhagen Restaurants – 2D Histogram</b>"
         +  f"<br><sup>n = {len(plot_df):,} restaurants",
     )
 
@@ -305,8 +305,8 @@ def get_district(postal_code: str) -> str | None:
     # ── valid postal codes for Copenhagen + Frederiksberg municipalities ──────────
     # Source: worldpostalcode.com (Copenhagen municipality + Frederiksberg kommune)
     CPH_POSTAL_CODES = set([
-        # København K — 1050–1473 (individual codes, not a solid range)
-        *range(1050, 1474),
+        # København K — 1000–1473 (individual codes, not a solid range)
+        *range(1000, 1474),
         # København V — 1500–1799
         *range(1500, 1800),
         # Frederiksberg C — 1800–1974
@@ -341,11 +341,11 @@ def get_district(postal_code: str) -> str | None:
     if code not in CPH_POSTAL_CODES:
         return None
 
-    if 1050 <= code <= 1473:
+    if 1000 <= code <= 1473:
         return "København K (Center)"
     elif 1500 <= code <= 1799:
         return "København V (Vesterbro)"
-    elif 1800 <= code <= 1999:
+    elif 1800 <= code <= 1974:
         return "Frederiksberg C"
     elif code == 2000:
         return "Frederiksberg"
@@ -434,7 +434,8 @@ def get_vegetarian_bar(df):
             continue
 
         fractions = pivot[label].tolist()
-        text_labels = [f"{v:.0%}" if v >= 0.04 else "" for v in fractions]
+        text_labels = [f"{v:.2%}" if v >= 0.04 else "" for v in fractions]
+        custom = [[f"{v:.2%}", n] for v, n in zip(fractions, totals_per)]
 
         fig.add_trace(go.Bar(
             name=label,
@@ -448,11 +449,11 @@ def get_vegetarian_bar(df):
             textfont=dict(color="white", size=12, family="monospace"),
             hovertemplate=(
                 "<b>%{y}</b><br>"
-                f"{label}: %{{x:.1%}}<br>"
-                "n (district total): %{customdata}<br>"
+                f"{label}: %{{customdata[0]}}<br>"
+                "n (district total): %{customdata[1]}<br>"
                 "<extra></extra>"
             ),
-            customdata=totals_per,
+            customdata=custom,
         ))
 
     # ── n= annotations on the right edge of each bar ─────────────────────────
@@ -478,7 +479,7 @@ def get_vegetarian_bar(df):
                 + f"<br><sup>n = {len(plot_df):,} restaurants"
         ,
         xaxis=dict(
-            tickformat=".0%",
+            tickformat=".2%",
             range=[0, 1.12],   # extra room for n= labels
             title="Share of restaurants",
             showgrid=True,
