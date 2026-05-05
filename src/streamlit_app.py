@@ -5,6 +5,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+import seaborn as sns
 
 from data_cleaner import get_df
 
@@ -147,14 +148,14 @@ def get_2d_hist_np(df, bins=100):
         color="count",
         color_continuous_scale=px.colors.sequential.Viridis,
         opacity=0.6,
-        zoom=9,
+        zoom=10,
         hover_data={
             "id": True,
             "count": True,
         },
-        center={"lat": 55.68, "lon": 12.5},
-        title="<b>Copenhagen Restaurants – 2D Histogram</b>"
-        +  f"<br><sup>n = {len(plot_df):,} restaurants",
+        center={"lat": 55.68, "lon": 12.55},
+        # title="<b>Copenhagen Restaurants – 2D Histogram</b>"
+        # +  f"<br><sup>n = {len(plot_df):,} restaurants",
     )
 
     fig.update_layout(
@@ -162,7 +163,7 @@ def get_2d_hist_np(df, bins=100):
             colorbar_title="No. of Restaurants",
         ),
         map_style="light",
-        margin={"r": 0, "t": 40, "l": 0, "b": 0}
+        margin={"r": 0, "t": 0, "l": 0, "b": 0}
     )
 
     fig.update_traces(
