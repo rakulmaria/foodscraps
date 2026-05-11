@@ -1,10 +1,80 @@
-# Foodscraps
+# Foodscraps: A Data Pipeline for Restaurant Menu Carbon Footprinting in Copenhagen
 
-> TODO: Introduction text here.
+This research project was developed at the IT University of Copenhagen (ITU) during Spring 2026 as part of a 4th semester course.
+The project was supervised by [Vedran Sekara](https://vedransekara.github.io/).
+The project was initiated to investigate the Copenhagen restaurant landscape as groundwork for research into food-related carbon footprints and climate choices. It scrapes all restaurants within Copenhagen from the Google Maps Places API, cleans and structures the data, and visualises it through an interactive Streamlit dashboard.
+The project was developed by Rakul Maria Hjalmarsdóttir Tórgarð.
 
-## Commit Message Guidelines
+---
 
-Commits that don't follow the [Conventional Commits](https://www.conventionalcommits.org/) hooks will be rejected. Here follows a guide on how to commit properly.
+## Package management
+
+Dependencies are managed with [uv](https://github.com/astral-sh/uv).
+
+```bash
+# install uv (if not already installed)
+curl -Lf https://astral.sh/uv/install.sh | sh
+
+# create virtual environment and install all dependencies
+uv sync
+
+# activate the virtual environment
+source .venv/bin/activate
+```
+
+Dependencies are declared in [pyproject.toml](pyproject.toml). Dev dependencies (ruff linter) are in the `[dependency-groups]` section and are installed automatically by `uv sync`.
+
+A `.env` file is required at the repo root with a valid Google Maps Platform API key:
+
+```
+MAPS_PLATFORM_API_KEY=<your_key_here>
+```
+
+---
+
+## Codebase structure
+
+```
+foodscraps/
+├── src/
+│   ├── config.py           # ROOT_DIR / DATA_DIR / SRC_DIR path constants
+│   ├── logger.py           # logging setup (call setup_logger() before running)
+│   ├── data_collector.py   # Google Maps Places API calls (nearby search, area insights)
+│   ├── quadtree.py         # quadtree scraper — entry point for data collection
+│   ├── data_cleaner.py     # loads + cleans the raw JSON into a pandas DataFrame
+│   ├── streamlit_app.py    # interactive dashboard with all visualisations
+│   ├── explorer.ipynb      # notebook for ad-hoc exploration of the dataset
+│   ├── plot_exporter.ipynb # notebook for rendering and saving publication plots
+│   └── plots/              # exported SVG figures (output of plot_exporter.ipynb)
+├── docs/                   # reference literature and project documents (PDFs, Gantt chart)
+├── foodscraper.wiki/       # project wiki (meeting notes, literature, todos)
+├── pyproject.toml          # project metadata and dependencies
+├── uv.lock                 # locked dependency tree
+├── .python-version         # pinned Python version (3.12)
+├── .pre-commit-config.yaml # pre-commit hooks (commitlint + end-of-file fixer)
+└── commitlint.config.js    # conventional commits ruleset
+```
+
+### Key modules
+
+`quadtree.py`: the data collection entry point. Defines a `BoundingBox` and `Node` class that together implement a [quadtree](https://en.wikipedia.org/wiki/Quadtree) over the Copenhagen bounding box. Because the Google Maps Nearby Search API caps results at 20 per query, a cell is recursively split into four quadrants whenever it returns ≥ 10 results, guaranteeing that no restaurants are missed. After traversal, `collect_results()` walks the leaf nodes and deduplicates by place ID.
+
+`data_collector.py`: thin wrappers around the Google Maps Places API (New). `nearby_search()` is the core call used by the quadtree. `find_aggregated_places()` uses the Area Insights API to count total restaurants in a polygon (used for validation).
+
+`data_cleaner.py`: `get_df()` loads the collected JSON, selects the relevant columns, keeps only `OPERATIONAL` restaurants, and unwraps nested location/name dictionaries into flat columns.
+
+`streamlit_app.py`: builds and renders five charts:
+- 2D histogram density map of restaurant locations
+- Top 20 restaurant types (bar chart)
+- Quadtree cell visualisation (shows how the bounding box was subdivided)
+- Vegetarian food availability by Copenhagen district (stacked horizontal bar)
+- Rating vs. price range (box plot)
+
+---
+
+## Commit message guidelines
+
+Commits that don't follow the [Conventional Commits](https://www.conventionalcommits.org/) hooks will be rejected.
 
 ### Format
 ```
@@ -18,8 +88,6 @@ Commits that don't follow the [Conventional Commits](https://www.conventionalcom
 - **`type`** — required, lowercase
 - **`scope`** — optional, lowercase, describes what part of the codebase is affected
 - **`subject`** — required, lowercase, no trailing period, max 100 characters total in the header
-
----
 
 ### Acceptable types
 
@@ -36,8 +104,6 @@ Commits that don't follow the [Conventional Commits](https://www.conventionalcom
 | `ci` | Changes to CI configuration or scripts |
 | `chore` | Miscellaneous tasks that don't change source or tests |
 | `revert` | Reverting a previous commit |
-
----
 
 ### Examples
 ```bash
@@ -59,9 +125,7 @@ git commit -m "feat(api)!: drop support for v1 endpoints
 BREAKING CHANGE: all v1 routes have been removed, migrate to v2."
 ```
 
----
-
-### Breaking Changes
+### Breaking changes
 
 A breaking change can be signalled in two ways:
 ```bash
