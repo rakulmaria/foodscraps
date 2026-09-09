@@ -1,13 +1,13 @@
 import pandas as pd
 
-from foodscraper.config import GOOGLE_MAPS_DATASETS
+from foodscraper.config import GOOGLE_MAPS_DIR
 
 
 def get_df():
     """
     load and clean the Copenhagen places dataset for analysis.
     """
-    cph_df = pd.read_json(GOOGLE_MAPS_DATASETS / "copenhagen-bounds-limit10_20260316_125502.json")
+    cph_df = pd.read_json(GOOGLE_MAPS_DIR / "copenhagen-bounds-limit10_20260316_125502.json")
     
     cols_to_keep = [
         "name", 

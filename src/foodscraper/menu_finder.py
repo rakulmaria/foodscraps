@@ -35,7 +35,7 @@ def run(restaurants, models, prompt_name, *, sleep=0.2, temperature=0):
     system_prompt = (PROMPTS_DIR / f"{prompt_name}.md").read_text(encoding="utf-8")
     client = get_client()
 
-    today_dir = DATA_DIR / str(date.today())
+    today_dir = RUNS_DIR / str(date.today())
     responses_dir = today_dir / "responses"
     raw_responses_dir = today_dir / "raw_responses"
     responses_dir.mkdir(parents=True, exist_ok=True)
@@ -68,7 +68,7 @@ def run(restaurants, models, prompt_name, *, sleep=0.2, temperature=0):
 
 def main():
     # restaurants = json.loads((DATA_DIR / "mini-box_20260311_101610.json").read_text())
-    restaurants = json.loads((GOOGLE_MAPS_DATASETS / RESTAURANT_FILE).read_text())
+    restaurants = json.loads((GOOGLE_MAPS_DIR / RESTAURANT_FILE).read_text())
 
     models = [
         "openai/gpt-5.6-terra", 
