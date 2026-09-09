@@ -232,3 +232,5 @@ pyrightconfig.json
 data
 stats
 src/notebooks/vedran_example/
+
+.claude
