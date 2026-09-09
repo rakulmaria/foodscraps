@@ -1,8 +1,8 @@
 # Foodscraps: A Data Pipeline for Restaurant Menu Carbon Footprinting in Copenhagen
 
-This research project was developed at the IT University of Copenhagen (ITU) during Spring 2026 as part of a 4th semester course.
+This research project was developed at the IT University of Copenhagen (ITU) during Spring 2026 as part of a 5th semester MSc course.
 The project was supervised by [Vedran Sekara](https://vedransekara.github.io/).
-The project was initiated to investigate the Copenhagen restaurant landscape as groundwork for research into food-related carbon footprints and climate choices. It scrapes all restaurants within Copenhagen from the Google Maps Places API, cleans and structures the data, and visualises it through an interactive Streamlit dashboard.
+The project investigates the Copenhagen restaurant landscape as groundwork for research into food-related carbon footprints and climate choices. It scrapes all restaurants within Copenhagen from the Google Maps Places API, uses LLMs to collect menu data, and analyses the results across models and prompts.
 The project was developed by Rakul Maria Hjalmarsdóttir Tórgarð.
 
 ---
@@ -24,10 +24,11 @@ source .venv/bin/activate
 
 Dependencies are declared in [pyproject.toml](pyproject.toml). Dev dependencies (ruff linter) are in the `[dependency-groups]` section and are installed automatically by `uv sync`.
 
-A `.env` file is required at the repo root with a valid Google Maps Platform API key:
+A `.env` file is required at the repo root with the following keys:
 
 ```
-MAPS_PLATFORM_API_KEY=<your_key_here>
+MAPS_PLATFORM_API_KEY=<your_google_maps_key>
+LLMGATEWAY_API_KEY=<your_llmgateway_key>
 ```
 
 ---
@@ -37,22 +38,34 @@ MAPS_PLATFORM_API_KEY=<your_key_here>
 ```
 foodscraps/
 ├── src/
-│   ├── config.py           # ROOT_DIR / DATA_DIR / SRC_DIR path constants
-│   ├── logger.py           # logging setup (call setup_logger() before running)
-│   ├── data_collector.py   # Google Maps Places API calls (nearby search, area insights)
-│   ├── quadtree.py         # quadtree scraper — entry point for data collection
-│   ├── data_cleaner.py     # loads + cleans the raw JSON into a pandas DataFrame
-│   ├── streamlit_app.py    # interactive dashboard with all visualisations
-│   ├── explorer.ipynb      # notebook for ad-hoc exploration of the dataset
-│   ├── plot_exporter.ipynb # notebook for rendering and saving publication plots
-│   └── plots/              # exported SVG figures (output of plot_exporter.ipynb)
-├── docs/                   # reference literature and project documents (PDFs, Gantt chart)
-├── foodscraper.wiki/       # project wiki (meeting notes, literature, todos)
-├── pyproject.toml          # project metadata and dependencies
-├── uv.lock                 # locked dependency tree
-├── .python-version         # pinned Python version (3.12)
-├── .pre-commit-config.yaml # pre-commit hooks (commitlint + end-of-file fixer)
-└── commitlint.config.js    # conventional commits ruleset
+│   ├── foodscraper/            # installable Python package
+│   │   ├── config.py           # ROOT_DIR / DATA_DIR / RUNS_DIR / GOOGLE_MAPS_DIR path constants
+│   │   ├── logger.py           # logging setup
+│   │   ├── data_collector.py   # Google Maps Places API calls (nearby search, area insights)
+│   │   ├── quadtree.py         # quadtree scraper — entry point for data collection
+│   │   ├── data_cleaner.py     # loads + cleans the raw JSON into a pandas DataFrame
+│   │   ├── menu_finder.py      # LLM menu scraping via llmgateway.io
+│   │   └── streamlit_app.py    # interactive dashboard with all visualisations
+│   └── notebooks/              # Jupyter notebooks for exploration and analysis
+│       ├── explorer.ipynb
+│       ├── plot_exporter.ipynb
+│       └── respones_analyzer.ipynb
+├── data/                       # gitignored — local only
+│   ├── sources/
+│   │   └── google-maps-api/    # raw restaurant data fetched from Google Maps Places API
+│   └── runs/
+│       └── YYYY-MM-DD/         # dated LLM run outputs
+│           ├── responses/      # parsed CSV responses per model
+│           └── raw_responses/  # raw JSONL API responses per model
+├── plots/                      # exported SVG figures (output of plot_exporter.ipynb)
+├── prompts/                    # versioned LLM prompt files (named by date)
+├── docs/                       # reference literature and project documents (PDFs, Gantt chart)
+├── foodscraper.wiki/           # project wiki (meeting notes, literature, todos)
+├── pyproject.toml              # project metadata and dependencies
+├── uv.lock                     # locked dependency tree
+├── .python-version             # pinned Python version (3.12)
+├── .pre-commit-config.yaml     # pre-commit hooks (commitlint + end-of-file fixer)
+└── commitlint.config.js        # conventional commits ruleset
 ```
 
 ### Key modules
@@ -62,6 +75,8 @@ foodscraps/
 `data_collector.py`: thin wrappers around the Google Maps Places API (New). `nearby_search()` is the core call used by the quadtree. `find_aggregated_places()` uses the Area Insights API to count total restaurants in a polygon (used for validation).
 
 `data_cleaner.py`: `get_df()` loads the collected JSON, selects the relevant columns, keeps only `OPERATIONAL` restaurants, and unwraps nested location/name dictionaries into flat columns.
+
+`menu_finder.py`: sends restaurant data to LLMs via [llmgateway.io](https://llmgateway.io) and instructs them to locate digital menus. Results are saved to `data/runs/<date>/` as both CSV and raw JSONL per model.
 
 `streamlit_app.py`: builds and renders five charts:
 - 2D histogram density map of restaurant locations
