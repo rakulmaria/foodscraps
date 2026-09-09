@@ -6,7 +6,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from data_cleaner import get_df
+from foodscraper.data_cleaner import get_df
 
 
 def get_ratings_label(rating):

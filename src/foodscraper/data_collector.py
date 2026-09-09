@@ -7,7 +7,7 @@ from functools import partial
 import requests
 from timer import function_timer
 
-from config import DATA_DIR
+from foodscraper.config import GOOGLE_MAPS_DIR
 
 function_timer = partial(function_timer, decimals=5)
 
@@ -117,7 +117,7 @@ def search_text(text_query):
 def save_to_json(data, prefix="results"):
     """simple helper method to save the data to a json file"""
     timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-    filepath = DATA_DIR / f"{prefix}_{timestamp}.json"
+    filepath = GOOGLE_MAPS_DIR / f"{prefix}_{timestamp}.json"
 
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
